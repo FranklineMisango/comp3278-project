@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · Financial Tracker{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Dashboard</h1>
-  <p>Your money at a glance — spending, balances, budgets, and subscriptions.</p>
-</div>
+<section class="page-hero">
+  <div>
+    <span class="eyebrow">Your financial cockpit</span>
+    <h1>Good morning, keep your money moving.</h1>
+    <p>Your accounts, spending, budgets, and recurring costs — all in one calm overview.</p>
+  </div>
+  <a href="{{ url_for('new_transaction') }}" class="btn btn-accent">+ Add transaction</a>
+</section>
 
 <!-- Stat cards -->
 <div class="stat-grid">
@@ -162,12 +166,12 @@
           datasets: [{
             label: 'Spending ($)',
             data: data.daily.values,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderColor: '#51a31d',
+            backgroundColor: 'rgba(81, 163, 29, 0.1)',
             fill: true,
             tension: 0.4,
             pointRadius: 4,
-            pointBackgroundColor: '#3b82f6'
+            pointBackgroundColor: '#51a31d'
           }]
         },
         options: Object.assign({}, commonOpts, {
@@ -183,7 +187,7 @@
           labels: data.categories.labels,
           datasets: [{
             data: data.categories.values,
-            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#0ea5e9', '#64748b'],
+            backgroundColor: ['#51a31d', '#7585ff', '#ffc800', '#f65286', '#ff6e28', '#707070'],
             borderColor: '#fff',
             borderWidth: 3
           }]
@@ -205,7 +209,7 @@
           datasets: [{
             label: 'Balance ($)',
             data: data.accounts.values,
-            backgroundColor: '#3b82f6',
+            backgroundColor: '#51a31d',
             borderRadius: 6
           }]
         },

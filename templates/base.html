@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
 </head>
-<body>
+<body class="color-scheme-light">
 <header>
   <div class="header-inner">
     <div class="brand">
-      <span>&#128177;</span>
+      <span class="brand-glyph">&#36;</span>
       <span>Financial <mark>Tracker</mark></span>
     </div>
     <nav>
@@ -37,7 +37,7 @@
   {% block content %}{% endblock %}
 </div>
 
-<footer class="container" style="margin-top:3rem; padding-bottom:3rem; border-top:1px solid var(--border); color:var(--text-muted); font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+<footer class="app-footer container">
   <span>COMP3278 Final Project &bull; Built with Flask + MySQL</span>
   <span>Data sourced from Kaggle &bull; See README.md</span>
 </footer>

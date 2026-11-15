@@ -1,30 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Subscriptions · Financial Tracker{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Subscriptions</h1>
-  <p>Recurring subscriptions visualized by yearly cost.</p>
-</div>
+{% set total_yearly = subscriptions|sum(attribute='yearlyCost') %}
+{% set total_monthly = total_yearly / 12 %}
+{% set average_yearly = total_yearly / (subscriptions|length) if subscriptions else 0 %}
+
+<section class="subscription-hero">
+  <div>
+    <span class="eyebrow">Recurring spend</span>
+    <h1>Subscriptions</h1>
+    <p>Keep every recurring charge visible, organized, and easy to review.</p>
+  </div>
+  {% if subscriptions %}
+  <div class="hero-total">
+    <span>Annual commitment</span>
+    <strong class="num">${{ "%.2f"|format(total_yearly) }}</strong>
+    <small class="num">${{ "%.2f"|format(total_monthly) }} / month</small>
+  </div>
+  {% endif %}
+</section>
 
 {% if subscriptions %}
-<div class="stat-grid">
-  {% for s in subscriptions %}
-  <div class="stat-card" style="grid-column: span 1;">
-    <div class="stat-label">Subscription #{{ s.subID }}</div>
-    <div class="stat-value num">${{ "%.2f"|format(s.yearlyCost) }}</div>
-    <div style="display:flex; justify-content:space-between; margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);">
-      <span>{{ s.amount }} {{ s.billingCycle }}</span>
-      <span>{{ s.owner }}</span>
+<section class="subscription-stats" aria-label="Subscription summary">
+  <article class="summary-card summary-card-primary">
+    <div class="summary-icon">&#8721;</div>
+    <div>
+      <span class="summary-label">Active plans</span>
+      <strong class="num">{{ subscriptions|length }}</strong>
+      <small>recurring services</small>
     </div>
-    <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-dim);">
-      Charged to: {{ s.IBAN[-8:] }}
+  </article>
+  <article class="summary-card">
+    <div class="summary-icon">&#8599;</div>
+    <div>
+      <span class="summary-label">Monthly run rate</span>
+      <strong class="num">${{ "%.2f"|format(total_monthly) }}</strong>
+      <small>estimated each month</small>
     </div>
+  </article>
+  <article class="summary-card">
+    <div class="summary-icon">&#9733;</div>
+    <div>
+      <span class="summary-label">Average plan</span>
+      <strong class="num">${{ "%.2f"|format(average_yearly) }}</strong>
+      <small>per year</small>
+    </div>
+  </article>
+</section>
+
+<section class="subscription-panel">
+  <div class="subscription-panel-header">
+    <div>
+      <span class="eyebrow">Portfolio</span>
+      <h2>All subscriptions</h2>
+    </div>
+    <span class="result-count">{{ subscriptions|length }} records</span>
   </div>
-  {% endfor %}
-</div>
+  <div class="subscription-list">
+    <div class="subscription-list-head">
+      <span>Service</span>
+      <span>Billing</span>
+      <span>Owner</span>
+      <span>Charged to</span>
+      <span class="align-right">Yearly cost</span>
+    </div>
+    {% for s in subscriptions %}
+    <div class="subscription-row">
+      <div class="service-cell">
+        <span class="service-mark">{{ s.subID }}</span>
+        <div>
+          <strong>Subscription #{{ s.subID }}</strong>
+          <small>Recurring service</small>
+        </div>
+      </div>
+      <div class="billing-cell">
+        <strong class="num">${{ "%.2f"|format(s.amount) }}</strong>
+        <span class="cycle-badge">{{ s.billingCycle|title }}</span>
+      </div>
+      <div class="owner-cell" title="{{ s.owner }}">{{ s.owner }}</div>
+      <div class="account-cell"><span class="account-dot"></span><span class="num">•••• {{ s.IBAN[-8:] }}</span></div>
+      <div class="yearly-cell align-right num">${{ "%.2f"|format(s.yearlyCost) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
 {% else %}
-<div class="empty-state">
-  <p>No subscriptions found.</p>
+<div class="empty-state subscription-empty">
+  <div class="empty-state-icon">&#9734;</div>
+  <h3>No subscriptions yet</h3>
+  <p>Recurring services will appear here once they are added to your account.</p>
 </div>
 {% endif %}
 {% endblock %}

@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Transactions · Financial Tracker{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Transactions</h1>
-  <p>Every movement across your accounts. Log a new expense in under 5 seconds.</p>
-</div>
+<section class="page-hero page-hero-compact">
+  <div>
+    <span class="eyebrow">Money in motion</span>
+    <h1>Transactions</h1>
+    <p>See where your money went and keep every payment in context.</p>
+  </div>
+  <a href="{{ url_for('new_transaction') }}" class="btn btn-accent">+ Log expense</a>
+</section>
 
 <div class="filter-bar">
-  <a href="{{ url_for('new_transaction') }}" class="btn btn-accent">&#10010; Log expense</a>
   <form method="get" action="{{ url_for('transactions') }}" style="margin:0; flex:1; min-width:220px;">
     <select name="category" onchange="this.form.submit()" class="w-full">
       <option value="">All categories</option>
@@ -25,34 +28,29 @@
 
 <p class="small">Showing {{ transactions|length }} of {{ total }} transaction{{ 's' if total != 1 else '' }}.</p>
 
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>Date</th><th class="numeric">Amount</th><th>Category</th><th>Account (IBAN)</th><th class="numeric">Subscription</th><th class="numeric" style="width:140px">Actions</th></tr>
-    </thead>
-    <tbody>
+<div class="transaction-list">
+  <div class="transaction-list-head">
+    <span>Date</span><span>Category</span><span>Account</span><span class="align-right">Amount</span><span class="align-right">Actions</span>
+  </div>
       {% for t in transactions %}
-      <tr>
-        <td>{{ t.txDate }}</td>
-        <td class="numeric num {% if t.amount > 0 %}positive{% else %}negative{% endif %}">${{ "%.2f"|format(t.amount) }}</td>
-        <td>{{ t.category }}</td>
-        <td>{{ t.IBAN }}</td>
-        <td class="numeric num">{{ t.subID if t.subID else '—' }}</td>
-        <td class="numeric">
+      <div class="transaction-row">
+        <div class="transaction-date"><strong>{{ t.txDate.strftime('%d') if t.txDate.strftime is defined else t.txDate }}</strong><small>{{ t.txDate.strftime('%b') if t.txDate.strftime is defined else '' }}</small></div>
+        <div class="transaction-category"><span class="category-dot"></span><div><strong>{{ t.category }}</strong><small>{% if t.subID %}Subscription #{{ t.subID }}{% else %}General spending{% endif %}</small></div></div>
+        <div class="transaction-account"><span class="account-chip">•••• {{ t.IBAN[-4:] }}</span></div>
+        <div class="transaction-amount align-right num {% if t.amount > 0 %}positive{% else %}negative{% endif %}">{{ "+" if t.amount > 0 else "−" }}${{ "%.2f"|format(t.amount|abs) }}</div>
+        <div class="transaction-actions align-right">
           <a href="{{ url_for('edit_transaction', tx_id=t.txNo) }}" class="btn btn-ghost btn-sm">Edit</a>
           <form method="post" action="{{ url_for('delete_transaction', tx_id=t.txNo) }}" class="delete-form" style="display:inline;" onsubmit="return confirm('Delete this transaction?');">
             <button class="btn btn-danger btn-sm">Delete</button>
           </form>
-        </td>
-      </tr>
+        </div>
+      </div>
       {% else %}
-      <tr><td colspan="6" class="empty-state" style="padding:2rem; text-align:center;">
+      <div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin:0 auto 1rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <p style="margin:0; font-weight:600;">No transactions found.</p>
-      </td></tr>
+        <p>No transactions found.</p>
+      </div>
       {% endfor %}
-    </tbody>
-  </table>
 </div>
 
 {% if total_pages > 1 %}

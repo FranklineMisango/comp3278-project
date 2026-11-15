@@ -1,0 +1,6 @@
+categoryID,category_name,limitAmount,month
+1,Housing,1250.0,2026-11
+2,Food & Groceries,500.0,2026-11
+3,Transportation,250.0,2026-11
+4,Entertainment,150.0,2026-11
+5,Utilities,200.0,2026-11

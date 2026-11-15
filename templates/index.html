@@ -35,7 +35,7 @@
 </div>
 
 <!-- Chart row: 3 charts side by side -->
-<div class="dashboard-grid" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto;">
+<div class="dashboard-grid dashboard-charts">
   <!-- Daily trend line chart -->
   <div class="card">
     <div class="card-header">
@@ -166,12 +166,12 @@
           datasets: [{
             label: 'Spending ($)',
             data: data.daily.values,
-            borderColor: '#51a31d',
-            backgroundColor: 'rgba(81, 163, 29, 0.1)',
+            borderColor: '#26336D',
+            backgroundColor: 'rgba(38, 51, 109, 0.1)',
             fill: true,
             tension: 0.4,
             pointRadius: 4,
-            pointBackgroundColor: '#51a31d'
+            pointBackgroundColor: '#26336D'
           }]
         },
         options: Object.assign({}, commonOpts, {
@@ -187,7 +187,7 @@
           labels: data.categories.labels,
           datasets: [{
             data: data.categories.values,
-            backgroundColor: ['#51a31d', '#7585ff', '#ffc800', '#f65286', '#ff6e28', '#707070'],
+            backgroundColor: ['#26336D', '#3B82F6', '#4CAF50', '#F59E0B', '#DC2626', '#9CA3AF'],
             borderColor: '#fff',
             borderWidth: 3
           }]
@@ -209,7 +209,7 @@
           datasets: [{
             label: 'Balance ($)',
             data: data.accounts.values,
-            backgroundColor: '#51a31d',
+            backgroundColor: '#26336D',
             borderRadius: 6
           }]
         },

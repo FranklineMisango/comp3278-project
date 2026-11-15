@@ -1,0 +1,27 @@
+COMP3278 Final Project Assessment Criteria
+Total: 100 marks
+      Submission Materials and Reproducibility: 30 marks.
+      Presentation: 70 marks.
+      All members of the same group will receive the same mark.
+A. Submission Materials and Reproducibility: 30 marks
+ Assessment Item                                                           Marks
+ Completeness of the source code and required files                            10
+ README: installation and run instructions                                     10
+ README: database setup, configuration, and initial data instructions          10
+ Subtotal                                                                      30
+The main criterion for the submitted materials is reproducibility: the marker should be able to follow the
+README to run the application and set up a database populated with data.
+B. Presentation: 70 marks
+ Assessment Item                                                                            Marks
+ 1. Introduction to the web app’s functionality and design                                     10
+ 2. Explanation of the ER diagram                                                              10
+ 3. Explanation of key SQL statements                                                          15
+ 4. Video demonstration of CRUD functionality and database operations                          25
+ 5. Overall organization, delivery, participation of all group members, and time management    10
+ Subtotal                                                                                      70
+Basic Requirements
+      The presentation should be 5 minutes in total.
+      CRUD functionality and database operations should be demonstrated in the video.
+      The video must not exceed 2 minutes and is included in the 5-minute presentation time.
+      Every group member must speak during the presentation.
+

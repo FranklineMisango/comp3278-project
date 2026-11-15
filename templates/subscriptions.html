@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Subscriptions · Financial Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Subscriptions</h1>
+  <p>Recurring subscriptions visualized by yearly cost.</p>
+</div>
+
+{% if subscriptions %}
+<div class="stat-grid">
+  {% for s in subscriptions %}
+  <div class="stat-card" style="grid-column: span 1;">
+    <div class="stat-label">Subscription #{{ s.subID }}</div>
+    <div class="stat-value num">${{ "%.2f"|format(s.yearlyCost) }}</div>
+    <div style="display:flex; justify-content:space-between; margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);">
+      <span>{{ s.amount }} {{ s.billingCycle }}</span>
+      <span>{{ s.owner }}</span>
+    </div>
+    <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-dim);">
+      Charged to: {{ s.IBAN[-8:] }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No subscriptions found.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Categories · Financial Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Categories</h1>
+  <p>Spending categories visualized by transaction volume and total.</p>
+</div>
+
+{% if categories %}
+<div class="stat-grid">
+  {% for c in categories %}
+  <div class="stat-card" style="grid-column: span 1;">
+    <div class="stat-label">{{ c.name }}</div>
+    <div class="stat-value num">${{ "%.2f"|format(c.total_spent) }}</div>
+    <div style="display:flex; justify-content:space-between; margin-top:0.5rem; font-size:0.85rem; color:var(--text-muted);">
+      <span>{{ c.tx_count }} transaction{{ 's' if c.tx_count != 1 else '' }}</span>
+      <span class="badge {% if c.total_spent > 500 %}badge-warn{% else %}badge-ok{% endif %}">
+        {% if c.total_spent > 500 %}High spend{% else %}Normal{% endif %}
+      </span>
+    </div>
+    <div class="progress-track" style="margin-top:0.75rem;">
+      <div class="progress-fill {% if c.total_spent > 500 %}warn{% else %}ok{% endif %}" style="width: {{ (c.total_spent / 1000 * 100)|float if c.total_spent else 0 }}%; max-width:100%;"></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No categories found.</p>
+</div>
+{% endif %}
+{% endblock %}

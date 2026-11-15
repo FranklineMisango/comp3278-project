@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Budgets · Financial Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Budgets</h1>
+  <p>Monthly spending limits per category versus actual spending.</p>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    {% if budgets %}
+      {% for b in budgets %}
+      <div style="margin-bottom: 1.25rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+          <span style="font-size:0.95rem; font-weight:700; color:var(--brand-ink);">{{ b.category }}</span>
+          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">${{ "%.2f"|format(b.spent) }} / ${{ "%.2f"|format(b.limitAmount) }}</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill {% if b.is_over %}over{% elif b.spent > b.limitAmount * 8 / 10 %}warn{% else %}ok{% endif %}" style="width: {{ (b.spent / b.limitAmount * 100)|float if b.limitAmount else 0 }}%;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:0.35rem;">
+          <span class="badge {% if b.is_over %}badge-over{% else %}badge-ok{% endif %}">
+            {% if b.is_over %}&#10003; Over budget{% else %}On track{% endif %}
+          </span>
+          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">
+            Remaining: ${{ "%.2f"|format(b.remaining) }}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty-state" style="padding:1.5rem;">
+      <p>No budgets found.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

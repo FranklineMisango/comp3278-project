@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Financial Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <p>Your money at a glance — spending, balances, budgets, and subscriptions.</p>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total spending</div>
+    <div class="stat-value num">${{ "%.2f"|format(total_spending) }}</div>
+    <div class="stat-delta neutral">{{ tx_count }} transactions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Account balances</div>
+    <div class="stat-value num">${{ "%.2f"|format(total_balance) }}</div>
+    <div class="stat-delta neutral">Across all accounts</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Subscriptions</div>
+    <div class="stat-value num">{{ subscriptions|length }}</div>
+    <div class="stat-delta neutral">Active recurring</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Categories</div>
+    <div class="stat-value num">{{ spending_by_category|length }}</div>
+    <div class="stat-delta neutral">Spending tracked</div>
+  </div>
+</div>
+
+<!-- Chart row: 3 charts side by side -->
+<div class="dashboard-grid" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto;">
+  <!-- Daily trend line chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="title-row">
+        <h2 class="card-title">Daily Spending Trend</h2>
+      </div>
+    </div>
+    <div class="card-body chart-wrap">
+      <canvas id="dailyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Category breakdown doughnut -->
+  <div class="card">
+    <div class="card-header">
+      <div class="title-row">
+        <h2 class="card-title">Spending by Category</h2>
+      </div>
+    </div>
+    <div class="card-body chart-wrap">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Account balances bar chart -->
+  <div class="card">
+    <div class="card-header">
+      <div class="title-row">
+        <h2 class="card-title">Account Balances</h2>
+      </div>
+    </div>
+    <div class="card-body chart-wrap">
+      <canvas id="accountChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Budget vs actual (progress bars) -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Budget vs Actual (Current Month)</h2>
+  </div>
+  <div class="card-body">
+    {% if budget_status %}
+      {% for row in budget_status %}
+      <div style="margin-bottom: 1.25rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+          <span style="font-size:0.95rem; font-weight:700; color:var(--brand-ink);">{{ row.category }}</span>
+          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">${{ "%.2f"|format(row.spent) }} / ${{ "%.2f"|format(row.limitAmount) }}</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill {% if row.is_over %}over{% elif row.spent > row.limitAmount * 8 / 10 %}warn{% else %}ok{% endif %}" style="width: {{ (row.spent / row.limitAmount * 100)|float if row.limitAmount else 0 }}%;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:0.35rem;">
+          <span class="badge {% if row.is_over %}badge-over{% else %}badge-ok{% endif %}">
+            {% if row.is_over %}&#10003; Over budget{% else %}On track{% endif %}
+          </span>
+          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">
+            Remaining: ${{ "%.2f"|format(row.remaining) }}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty-state" style="padding:1.5rem;">
+      <p>No budgets configured for the current month.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recent transactions (compact) -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Recent Transactions</h2>
+    <a href="{{ url_for('transactions') }}" class="btn btn-ghost btn-sm">View all &rarr;</a>
+  </div>
+  <div class="card-body">
+    {% if recent_tx %}
+    <table style="font-size:0.88rem;">
+      <thead><tr><th>Date</th><th class="numeric">Amount</th><th>Category</th><th>Account</th></tr></thead>
+      <tbody>
+        {% for row in recent_tx %}
+        <tr>
+          <td>{{ row.txDate }}</td>
+          <td class="numeric num {% if row.amount > 0 %}positive{% else %}negative{% endif %}">${{ "%.2f"|format(row.amount) }}</td>
+          <td>{{ row.category }}</td>
+          <td>{{ row.IBAN[-8:] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <h3>No transactions yet</h3>
+      <p>Tap the + button to log your first expense.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Quick Add FAB -->
+<div class="fab-wrap">
+  <a href="{{ url_for('new_transaction') }}" class="fab" title="Log expense">+</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+<script>
+  fetch('/api/chart-data')
+    .then(r => r.json())
+    .then(data => {
+      const commonOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'PolySans', size: 12 } } },
+          title: { display: false }
+        }
+      };
+
+      // Daily Spending Trend — Line chart
+      const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+      new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+          labels: data.daily.labels,
+          datasets: [{
+            label: 'Spending ($)',
+            data: data.daily.values,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#3b82f6'
+          }]
+        },
+        options: Object.assign({}, commonOpts, {
+          scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v } } }
+        })
+      });
+
+      // Spending by Category — Doughnut
+      const catCtx = document.getElementById('categoryChart').getContext('2d');
+      new Chart(catCtx, {
+        type: 'doughnut',
+        data: {
+          labels: data.categories.labels,
+          datasets: [{
+            data: data.categories.values,
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#0ea5e9', '#64748b'],
+            borderColor: '#fff',
+            borderWidth: 3
+          }]
+        },
+        options: Object.assign({}, commonOpts, {
+          cutout: '70%',
+          plugins: Object.assign({}, commonOpts.plugins, {
+            legend: { position: 'right', labels: { font: { family: 'PolySans', size: 13 } } }
+          })
+        })
+      });
+
+      // Account Balances — Bar chart
+      const acctCtx = document.getElementById('accountChart').getContext('2d');
+      new Chart(acctCtx, {
+        type: 'bar',
+        data: {
+          labels: data.accounts.labels,
+          datasets: [{
+            label: 'Balance ($)',
+            data: data.accounts.values,
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: Object.assign({}, commonOpts, {
+          indexAxis: 'y',
+          scales: { x: { beginAtZero: true, ticks: { callback: v => '$' + v } } }
+        })
+      });
+    })
+    .catch(err => console.error('Chart data error:', err));
+</script>
+{% endblock %}

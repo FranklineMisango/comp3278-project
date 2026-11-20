@@ -9,7 +9,12 @@ def setup_kaggle_auth():
     os.makedirs(token_dir, exist_ok=True)
     token_path = os.path.join(token_dir, "access_token")
     
-    token_value = "KGAT_5be26136cc2ce2d2059982d0868cab4d"
+    token_value = os.environ.get("KAGGLE_TOKEN")
+    if not token_value:
+        if os.path.exists(token_path):
+            print(f"[INFO] Using existing Kaggle token at {token_path}")
+            return
+        raise SystemExit("[ERROR] Set the KAGGLE_TOKEN environment variable to your Kaggle access token.")
     with open(token_path, "w") as f:
         f.write(token_value)
     os.chmod(token_path, 0o600)

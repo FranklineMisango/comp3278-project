@@ -1,224 +1,148 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · Financial Tracker{% endblock %}
+{% import "_macros.html" as ui with context %}
+{% block title %}Home | Financial Tracker{% endblock %}
 {% block content %}
-<section class="page-hero">
-  <div>
-    <span class="eyebrow">Your financial cockpit</span>
-    <h1>Good morning, keep your money moving.</h1>
-    <p>Your accounts, spending, budgets, and recurring costs — all in one calm overview.</p>
+
+<section class="hero">
+  <div class="hero-balance">
+    <p class="hero-label">Total balance</p>
+    <p class="balance">{{ total_balance|money }}</p>
+    <p class="hero-sub">Across {{ accounts|length }} account{{ 's' if accounts|length != 1 }}, credit card debt included</p>
   </div>
-  <a href="{{ url_for('new_transaction') }}" class="btn btn-accent">+ Add transaction</a>
+  <div class="quick-actions">
+    <a class="qa" href="{{ url_for('new_transaction') }}"><span class="qa-icon primary"><svg><use href="#i-plus"/></svg></span>Add transaction</a>
+    <a class="qa" href="{{ url_for('new_account') }}"><span class="qa-icon"><svg><use href="#i-bank"/></svg></span>New account</a>
+    <a class="qa" href="{{ url_for('budgets') }}"><span class="qa-icon"><svg><use href="#i-target"/></svg></span>Budgets</a>
+  </div>
 </section>
 
-<!-- Stat cards -->
-<div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-label">Total spending</div>
-    <div class="stat-value num">${{ "%.2f"|format(total_spending) }}</div>
-    <div class="stat-delta neutral">{{ tx_count }} transactions</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Account balances</div>
-    <div class="stat-value num">${{ "%.2f"|format(total_balance) }}</div>
-    <div class="stat-delta neutral">Across all accounts</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Subscriptions</div>
-    <div class="stat-value num">{{ subscriptions|length }}</div>
-    <div class="stat-delta neutral">Active recurring</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Categories</div>
-    <div class="stat-value num">{{ spending_by_category|length }}</div>
-    <div class="stat-delta neutral">Spending tracked</div>
-  </div>
-</div>
+<section class="acct-strip" aria-label="Your accounts">
+  {% for a in accounts %}
+    {{ ui.account_tile(a, url_for('transactions', iban=a.IBAN)) }}
+  {% else %}
+    {{ ui.empty('No accounts yet', 'Add a bank account to see your balance here.', url_for('new_account'), 'Add account') }}
+  {% endfor %}
+</section>
 
-<!-- Chart row: 3 charts side by side -->
-<div class="dashboard-grid dashboard-charts">
-  <!-- Daily trend line chart -->
-  <div class="card">
-    <div class="card-header">
-      <div class="title-row">
-        <h2 class="card-title">Daily Spending Trend</h2>
+<div class="cols">
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Spent in {{ month|month_label(short=True) }}</h2>
+        <p class="big-number">{{ flow.money_out|money }}</p>
+        {% set diff = flow.money_out - last_month_spent %}
+        <p class="muted small">
+          {% if last_month_spent %}
+            {{ diff|abs|usd }} {{ 'more' if diff > 0 else 'less' }} than by this day last month
+          {% endif %}
+        </p>
+      </div>
+      <div class="inout">
+        <span class="muted small">Money in</span>
+        <span class="in-amount {{ 'zero' if not flow.money_in }}">{{ flow.money_in|money(signed=True) }}</span>
       </div>
     </div>
-    <div class="card-body chart-wrap">
-      <canvas id="dailyChart"></canvas>
-    </div>
-  </div>
+    <div class="chart-box"><canvas id="dailyChart" aria-label="Spending so far this month compared with last month" role="img"></canvas></div>
+  </section>
 
-  <!-- Category breakdown doughnut -->
-  <div class="card">
-    <div class="card-header">
-      <div class="title-row">
-        <h2 class="card-title">Spending by Category</h2>
-      </div>
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Budgets this month</h2>
+      <a class="link" href="{{ url_for('budgets') }}">See all</a>
     </div>
-    <div class="card-body chart-wrap">
-      <canvas id="categoryChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Account balances bar chart -->
-  <div class="card">
-    <div class="card-header">
-      <div class="title-row">
-        <h2 class="card-title">Account Balances</h2>
-      </div>
-    </div>
-    <div class="card-body chart-wrap">
-      <canvas id="accountChart"></canvas>
-    </div>
-  </div>
-</div>
-
-<!-- Budget vs actual (progress bars) -->
-<div class="card">
-  <div class="card-header">
-    <h2 class="card-title">Budget vs Actual (Current Month)</h2>
-  </div>
-  <div class="card-body">
-    {% if budget_status %}
-      {% for row in budget_status %}
-      <div style="margin-bottom: 1.25rem;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
-          <span style="font-size:0.95rem; font-weight:700; color:var(--brand-ink);">{{ row.category }}</span>
-          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">${{ "%.2f"|format(row.spent) }} / ${{ "%.2f"|format(row.limitAmount) }}</span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill {% if row.is_over %}over{% elif row.spent > row.limitAmount * 8 / 10 %}warn{% else %}ok{% endif %}" style="width: {{ (row.spent / row.limitAmount * 100)|float if row.limitAmount else 0 }}%;"></div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:0.35rem;">
-          <span class="badge {% if row.is_over %}badge-over{% else %}badge-ok{% endif %}">
-            {% if row.is_over %}&#10003; Over budget{% else %}On track{% endif %}
-          </span>
-          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">
-            Remaining: ${{ "%.2f"|format(row.remaining) }}
-          </span>
-        </div>
-      </div>
-      {% endfor %}
+    {% for b in budgets %}
+      {{ ui.budget_row(b, compact=True) }}
     {% else %}
-    <div class="empty-state" style="padding:1.5rem;">
-      <p>No budgets configured for the current month.</p>
-    </div>
-    {% endif %}
-  </div>
+      {{ ui.empty('No budgets this month', 'Budgets are set per category and month.') }}
+    {% endfor %}
+  </section>
 </div>
 
-<!-- Recent transactions (compact) -->
-<div class="card">
-  <div class="card-header">
-    <h2 class="card-title">Recent Transactions</h2>
-    <a href="{{ url_for('transactions') }}" class="btn btn-ghost btn-sm">View all &rarr;</a>
-  </div>
-  <div class="card-body">
-    {% if recent_tx %}
-    <table style="font-size:0.88rem;">
-      <thead><tr><th>Date</th><th class="numeric">Amount</th><th>Category</th><th>Account</th></tr></thead>
-      <tbody>
-        {% for row in recent_tx %}
-        <tr>
-          <td>{{ row.txDate }}</td>
-          <td class="numeric num {% if row.amount > 0 %}positive{% else %}negative{% endif %}">${{ "%.2f"|format(row.amount) }}</td>
-          <td>{{ row.category }}</td>
-          <td>{{ row.IBAN[-8:] }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="cols">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Recent transactions</h2>
+      <a class="link" href="{{ url_for('transactions') }}">See all</a>
+    </div>
+    {% if recent %}
+      {{ ui.tx_list(recent) }}
     {% else %}
-    <div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <h3>No transactions yet</h3>
-      <p>Tap the + button to log your first expense.</p>
-    </div>
+      {{ ui.empty('No transactions yet', 'Your payments will show up here.', url_for('new_transaction'), 'Add transaction') }}
     {% endif %}
-  </div>
-</div>
+  </section>
 
-<!-- Quick Add FAB -->
-<div class="fab-wrap">
-  <a href="{{ url_for('new_transaction') }}" class="fab" title="Log expense">+</a>
-</div>
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Where it went</h2>
+      <a class="link" href="{{ url_for('categories') }}">Categories</a>
+    </div>
+    {% set max_spent = by_category[0].spent if by_category else 1 %}
+    {% for c in by_category %}
+      <div class="cat-row">
+        {{ ui.cat_icon(c.category, 'sm') }}
+        <span class="cat-name">{{ c.category or 'Uncategorized' }}</span>
+        <span class="cat-bar" aria-hidden="true"><span style="width: {{ c.spent / max_spent * 100 }}%"></span></span>
+        <span class="cat-amount">{{ c.spent|money }}</span>
+      </div>
+    {% else %}
+      <p class="muted">Nothing spent yet this month.</p>
+    {% endfor %}
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+    <a class="subs-teaser" href="{{ url_for('subscriptions') }}">
+      {{ ui.cat_icon('Subscriptions') }}
+      <span class="tx-main">
+        <span class="tx-title">{{ subs.n }} subscription{{ 's' if subs.n != 1 }}</span>
+        <span class="tx-sub">{{ (subs.yearly / 12)|usd }} a month on average</span>
+      </span>
+      <span class="tx-amount">{{ subs.yearly|money }}<span class="per">/yr</span></span>
+    </a>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-  fetch('/api/chart-data')
-    .then(r => r.json())
-    .then(data => {
-      const commonOpts = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { font: { family: 'PolySans', size: 12 } } },
-          title: { display: false }
-        }
-      };
-
-      // Daily Spending Trend — Line chart
-      const dailyCtx = document.getElementById('dailyChart').getContext('2d');
-      new Chart(dailyCtx, {
+  fetch('{{ url_for("chart_data") }}')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!window.Chart) return;
+      var font = { family: 'Manrope', size: 11 };
+      var money = function (v) { return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+      new Chart(document.getElementById('dailyChart'), {
         type: 'line',
         data: {
-          labels: data.daily.labels,
-          datasets: [{
-            label: 'Spending ($)',
-            data: data.daily.values,
-            borderColor: '#26336D',
-            backgroundColor: 'rgba(38, 51, 109, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 4,
-            pointBackgroundColor: '#26336D'
-          }]
+          labels: data.labels,
+          datasets: [
+            { label: 'This month', data: data.this_month, borderColor: '#26336D', borderWidth: 2.5,
+              backgroundColor: 'rgba(59,130,246,.10)', fill: 'origin', tension: .25, pointRadius: 0,
+              pointHoverRadius: 4, pointBackgroundColor: '#26336D' },
+            { label: 'Last month', data: data.last_month, borderColor: '#B8C2DA', borderWidth: 2,
+              borderDash: [5, 5], fill: false, tension: .25, pointRadius: 0, pointHoverRadius: 3 }
+          ]
         },
-        options: Object.assign({}, commonOpts, {
-          scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v } } }
-        })
-      });
-
-      // Spending by Category — Doughnut
-      const catCtx = document.getElementById('categoryChart').getContext('2d');
-      new Chart(catCtx, {
-        type: 'doughnut',
-        data: {
-          labels: data.categories.labels,
-          datasets: [{
-            data: data.categories.values,
-            backgroundColor: ['#26336D', '#3B82F6', '#4CAF50', '#F59E0B', '#DC2626', '#9CA3AF'],
-            borderColor: '#fff',
-            borderWidth: 3
-          }]
-        },
-        options: Object.assign({}, commonOpts, {
-          cutout: '70%',
-          plugins: Object.assign({}, commonOpts.plugins, {
-            legend: { position: 'right', labels: { font: { family: 'PolySans', size: 13 } } }
-          })
-        })
-      });
-
-      // Account Balances — Bar chart
-      const acctCtx = document.getElementById('accountChart').getContext('2d');
-      new Chart(acctCtx, {
-        type: 'bar',
-        data: {
-          labels: data.accounts.labels,
-          datasets: [{
-            label: 'Balance ($)',
-            data: data.accounts.values,
-            backgroundColor: '#26336D',
-            borderRadius: 6
-          }]
-        },
-        options: Object.assign({}, commonOpts, {
-          indexAxis: 'y',
-          scales: { x: { beginAtZero: true, ticks: { callback: v => '$' + v } } }
-        })
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', align: 'start',
+                      labels: { boxWidth: 14, boxHeight: 2, color: '#6B7390', font: font } },
+            tooltip: { callbacks: {
+              title: function (items) { return 'Day ' + items[0].label; },
+              label: function (item) { return item.raw === null ? null : item.dataset.label + ': ' + money(item.raw); }
+            } }
+          },
+          scales: {
+            x: { grid: { display: false }, border: { display: false },
+                 ticks: { color: '#8A91AB', font: font, maxRotation: 0, autoSkipPadding: 12 } },
+            y: { beginAtZero: true, border: { display: false }, grid: { color: '#EEF1F6' },
+                 ticks: { color: '#8A91AB', font: font, maxTicksLimit: 4,
+                          callback: function (v) { return '$' + v.toLocaleString(); } } }
+          }
+        }
       });
     })
-    .catch(err => console.error('Chart data error:', err));
+    .catch(function (err) { console.error('Chart data error:', err); });
 </script>
 {% endblock %}

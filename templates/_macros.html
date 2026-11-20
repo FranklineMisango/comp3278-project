@@ -1,0 +1,80 @@
+{# Reusable pieces of UI #}
+
+{% macro cat_icon(name, size='') -%}
+  {% set icon, tint = category_style(name) %}
+  <span class="cat-icon {{ tint }} {{ size }}" aria-hidden="true"><svg><use href="#i-{{ icon if name else 'question' }}"/></svg></span>
+{%- endmacro %}
+
+{% macro tx_row(t, link=True) -%}
+  {% set title = t.serviceName or t.category or 'Uncategorized' %}
+  <{{ 'a' if link else 'div' }} class="tx" {% if link %}href="{{ url_for('edit_transaction', iban=t.IBAN, tx_no=t.txNo) }}"{% endif %}>
+    {{ cat_icon('Subscriptions' if t.serviceName else t.category) }}
+    <span class="tx-main">
+      <span class="tx-title">{{ title }}</span>
+      <span class="tx-sub">{% if t.serviceName %}{{ t.category or 'Subscription' }}, {% endif %}{{ t.bankName }} {{ t.IBAN|last4 }}</span>
+    </span>
+    <span class="tx-amount {% if t.amount > 0 %}in{% endif %}">{{ t.amount|money(signed=True) }}</span>
+  </{{ 'a' if link else 'div' }}>
+{%- endmacro %}
+
+{% macro tx_list(rows, link=True) -%}
+  {% for day, items in rows|groupby('txDate')|reverse %}
+    <section class="day">
+      <h3 class="day-head">
+        <span>{{ day|day_label }}</span>
+        {% set spent = items|selectattr('amount', 'lt', 0)|sum(attribute='amount') %}
+        {% if spent and items|length > 1 %}<span class="day-total">{{ spent|money }}</span>{% endif %}
+      </h3>
+      {% for t in items|sort(attribute='txNo', reverse=True) %}{{ tx_row(t, link) }}{% endfor %}
+    </section>
+  {% endfor %}
+{%- endmacro %}
+
+{% macro account_tile(a, href) -%}
+  <a class="acct-tile {{ a.type }}" href="{{ href }}">
+    <span class="acct-top">
+      <span class="bank-dot" aria-hidden="true">{{ a.bankName[:1] }}</span>
+      <span class="acct-type">{{ type_label[a.type] }}</span>
+    </span>
+    <span class="acct-bank">{{ a.bankName }} <span class="muted">{{ a.IBAN|last4 }}</span></span>
+    {% if a.type == 'creditcard' %}
+      {% set owed = -a.balance if a.balance < 0 else 0 %}
+      <span class="acct-balance">{{ owed|money }}</span>
+      <span class="acct-note">owed of {{ a.creditLimit|usd }} limit</span>
+      <span class="meter" aria-hidden="true"><span style="width: {{ [owed / a.creditLimit * 100, 100]|min if a.creditLimit else 0 }}%"></span></span>
+    {% else %}
+      <span class="acct-balance">{{ a.balance|money }}</span>
+      <span class="acct-note">{% if a.type == 'savings' %}{{ '%.2f'|format(a.interestRate * 100) }}% interest a year{% else %}Everyday account{% endif %}</span>
+    {% endif %}
+  </a>
+{%- endmacro %}
+
+{% macro budget_row(b, compact=False) -%}
+  <div class="budget {{ b.state }} {{ 'compact' if compact }}">
+    {{ cat_icon(b.category, 'sm' if compact else '') }}
+    <div class="budget-main">
+      <div class="budget-line">
+        <span class="budget-name">{{ b.category }}</span>
+        <span class="budget-nums">{{ b.spent|money }} <span class="muted">of {{ b.limitAmount|usd }}</span></span>
+      </div>
+      <div class="bar" role="progressbar" aria-label="{{ b.category }} budget used" aria-valuenow="{{ b.pct|round|int }}" aria-valuemin="0" aria-valuemax="100">
+        <span style="width: {{ [b.pct, 100]|min }}%"></span>
+      </div>
+      {% if not compact %}
+      <div class="budget-state">
+        {% if b.state == 'over' %}{{ (-b.left)|usd }} over budget
+        {% elif b.spent == 0 %}Nothing spent yet
+        {% else %}{{ b.left|usd }} left{% if b.state == 'near' %}, getting close{% endif %}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+{%- endmacro %}
+
+{% macro empty(title, text, href=None, cta=None) -%}
+  <div class="empty">
+    <strong>{{ title }}</strong>
+    <p>{{ text }}</p>
+    {% if href %}<a class="btn" href="{{ href }}">{{ cta }}</a>{% endif %}
+  </div>
+{%- endmacro %}

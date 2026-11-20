@@ -1,94 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Subscriptions · Financial Tracker{% endblock %}
+{% import "_macros.html" as ui with context %}
+{% block title %}Subscriptions | Financial Tracker{% endblock %}
 {% block content %}
-{% set total_yearly = subscriptions|sum(attribute='yearlyCost') %}
-{% set total_monthly = total_yearly / 12 %}
-{% set average_yearly = total_yearly / (subscriptions|length) if subscriptions else 0 %}
 
-<section class="subscription-hero">
+<div class="page-head">
   <div>
-    <span class="eyebrow">Recurring spend</span>
     <h1>Subscriptions</h1>
-    <p>Keep every recurring charge visible, organized, and easy to review.</p>
+    <p class="muted">Recurring payments and what they cost you over a year</p>
   </div>
-  {% if subscriptions %}
-  <div class="hero-total">
-    <span>Annual commitment</span>
-    <strong class="num">${{ "%.2f"|format(total_yearly) }}</strong>
-    <small class="num">${{ "%.2f"|format(total_monthly) }} / month</small>
-  </div>
-  {% endif %}
-</section>
+</div>
 
 {% if subscriptions %}
-<section class="subscription-stats" aria-label="Subscription summary">
-  <article class="summary-card summary-card-primary">
-    <div class="summary-icon">&#8721;</div>
-    <div>
-      <span class="summary-label">Active plans</span>
-      <strong class="num">{{ subscriptions|length }}</strong>
-      <small>recurring services</small>
+  <section class="stat-row">
+    <div class="stat">
+      <p class="muted small">Per year</p>
+      <p class="big-number">{{ total_yearly|money }}</p>
     </div>
-  </article>
-  <article class="summary-card">
-    <div class="summary-icon">&#8599;</div>
-    <div>
-      <span class="summary-label">Monthly run rate</span>
-      <strong class="num">${{ "%.2f"|format(total_monthly) }}</strong>
-      <small>estimated each month</small>
+    <div class="stat">
+      <p class="muted small">Per month, on average</p>
+      <p class="big-number">{{ (total_yearly / 12)|money }}</p>
     </div>
-  </article>
-  <article class="summary-card">
-    <div class="summary-icon">&#9733;</div>
-    <div>
-      <span class="summary-label">Average plan</span>
-      <strong class="num">${{ "%.2f"|format(average_yearly) }}</strong>
-      <small>per year</small>
+    <div class="stat">
+      <p class="muted small">Active</p>
+      <p class="big-number">{{ subscriptions|length }}</p>
     </div>
-  </article>
-</section>
+  </section>
 
-<section class="subscription-panel">
-  <div class="subscription-panel-header">
-    <div>
-      <span class="eyebrow">Portfolio</span>
-      <h2>All subscriptions</h2>
-    </div>
-    <span class="result-count">{{ subscriptions|length }} records</span>
-  </div>
-  <div class="subscription-list">
-    <div class="subscription-list-head">
-      <span>Service</span>
-      <span>Billing</span>
-      <span>Owner</span>
-      <span>Charged to</span>
-      <span class="align-right">Yearly cost</span>
-    </div>
+  <section class="panel flush">
     {% for s in subscriptions %}
-    <div class="subscription-row">
-      <div class="service-cell">
-        <span class="service-mark">{{ s.subID }}</span>
-        <div>
-          <strong>Subscription #{{ s.subID }}</strong>
-          <small>Recurring service</small>
-        </div>
+      <div class="tx sub">
+        <span class="service-mark" aria-hidden="true">{{ s.serviceName[:1] }}</span>
+        <span class="tx-main">
+          <span class="tx-title">{{ s.serviceName }}</span>
+          <span class="tx-sub">{{ s.billingCycle|capitalize }}, charged to {{ s.bankName }} {{ s.IBAN|last4 }}{% if s.lastPaid %}, last paid {{ s.lastPaid|day_label }}{% endif %}</span>
+        </span>
+        <span class="sub-cost">
+          <span class="tx-amount">{{ s.amount|money }}<span class="per">/{{ {'weekly': 'wk', 'monthly': 'mo', 'quarterly': 'qtr', 'yearly': 'yr'}[s.billingCycle] }}</span></span>
+          <span class="tx-sub">{{ s.yearlyCost|usd }} a year</span>
+        </span>
       </div>
-      <div class="billing-cell">
-        <strong class="num">${{ "%.2f"|format(s.amount) }}</strong>
-        <span class="cycle-badge">{{ s.billingCycle|title }}</span>
-      </div>
-      <div class="owner-cell" title="{{ s.owner }}">{{ s.owner }}</div>
-      <div class="account-cell"><span class="account-dot"></span><span class="num">•••• {{ s.IBAN[-8:] }}</span></div>
-      <div class="yearly-cell align-right num">${{ "%.2f"|format(s.yearlyCost) }}</div>
-    </div>
     {% endfor %}
-  </div>
-</section>
+  </section>
+  <p class="muted small center">Yearly cost is a derived attribute: it's calculated from the amount and billing cycle, not stored.</p>
 {% else %}
-<div class="empty-state subscription-empty">
-  <div class="empty-state-icon">&#9734;</div>
-  <h3>No subscriptions yet</h3>
-  <p>Recurring services will appear here once they are added to your account.</p>
-</div>
+  {{ ui.empty('No subscriptions', 'Recurring payments will show up here.') }}
 {% endif %}
 {% endblock %}

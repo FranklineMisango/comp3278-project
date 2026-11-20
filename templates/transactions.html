@@ -1,72 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Transactions · Financial Tracker{% endblock %}
+{% import "_macros.html" as ui with context %}
+{% block title %}Transactions | Financial Tracker{% endblock %}
 {% block content %}
-<section class="page-hero page-hero-compact">
+
+<div class="page-head">
   <div>
-    <span class="eyebrow">Money in motion</span>
     <h1>Transactions</h1>
-    <p>See where your money went and keep every payment in context.</p>
+    <p class="muted">{{ '{:,}'.format(totals.n) }} transaction{{ 's' if totals.n != 1 }}{% if f_category or f_iban or f_month %} match your filters{% endif %}</p>
   </div>
-  <a href="{{ url_for('new_transaction') }}" class="btn btn-accent">+ Log expense</a>
-</section>
-
-<div class="filter-bar">
-  <form method="get" action="{{ url_for('transactions') }}" style="margin:0; flex:1; min-width:220px;">
-    <select name="category" onchange="this.form.submit()" class="w-full">
-      <option value="">All categories</option>
-      {% for c in categories %}
-        <option value="{{ c.name }}" {% if c.name==category_filter %}selected{% endif %}>
-          {{ c.name }}
-        </option>
-      {% endfor %}
-    </select>
-  </form>
-  {% if category_filter %}
-    <a href="{{ url_for('transactions') }}" class="btn btn-ghost btn-sm">Clear filter</a>
-  {% endif %}
+  <a class="btn btn-primary" href="{{ url_for('new_transaction', iban=f_iban) }}"><svg><use href="#i-plus"/></svg>Add transaction</a>
 </div>
 
-<p class="small">Showing {{ transactions|length }} of {{ total }} transaction{{ 's' if total != 1 else '' }}.</p>
+<form class="filters" method="get" action="{{ url_for('transactions') }}">
+  <label class="sr-only" for="fAcct">Account</label>
+  <select id="fAcct" name="iban" onchange="this.form.submit()">
+    <option value="">All accounts</option>
+    {% for a in accounts %}
+      <option value="{{ a.IBAN }}" {% if a.IBAN == f_iban %}selected{% endif %}>{{ a.bankName }} {{ type_label[a.type]|lower }} {{ a.IBAN|last4 }}</option>
+    {% endfor %}
+  </select>
+  <label class="sr-only" for="fCat">Category</label>
+  <select id="fCat" name="category" onchange="this.form.submit()">
+    <option value="">All categories</option>
+    {% for c in categories %}
+      <option value="{{ c.categoryID }}" {% if c.categoryID|string == f_category %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+    <option value="none" {% if f_category == 'none' %}selected{% endif %}>Uncategorized</option>
+  </select>
+  <label class="sr-only" for="fMonth">Month</label>
+  <select id="fMonth" name="month" onchange="this.form.submit()">
+    <option value="">All months</option>
+    {% for m in months %}
+      <option value="{{ m }}" {% if m == f_month %}selected{% endif %}>{{ m|month_label }}</option>
+    {% endfor %}
+    {% if f_month and f_month not in months %}<option value="{{ f_month }}" selected>{{ f_month|month_label }}</option>{% endif %}
+  </select>
+  <noscript><button class="btn">Apply</button></noscript>
+  {% if f_category or f_iban or f_month %}
+    <a class="btn btn-ghost" href="{{ url_for('transactions') }}">Clear filters</a>
+  {% endif %}
+</form>
 
-<div class="transaction-list">
-  <div class="transaction-list-head">
-    <span>Date</span><span>Category</span><span>Account</span><span class="align-right">Amount</span><span class="align-right">Actions</span>
+{% if transactions %}
+  <div class="summary-chips">
+    <span class="chip">In <strong>{{ totals.money_in|money }}</strong></span>
+    <span class="chip">Out <strong>{{ totals.money_out|money }}</strong></span>
   </div>
-      {% for t in transactions %}
-      <div class="transaction-row">
-        <div class="transaction-date"><strong>{{ t.txDate.strftime('%d') if t.txDate.strftime is defined else t.txDate }}</strong><small>{{ t.txDate.strftime('%b') if t.txDate.strftime is defined else '' }}</small></div>
-        <div class="transaction-category"><span class="category-dot"></span><div><strong>{{ t.category }}</strong><small>{% if t.subID %}Subscription #{{ t.subID }}{% else %}General spending{% endif %}</small></div></div>
-        <div class="transaction-account"><span class="account-chip">•••• {{ t.IBAN[-4:] }}</span></div>
-        <div class="transaction-amount align-right num {% if t.amount > 0 %}positive{% else %}negative{% endif %}">{{ "+" if t.amount > 0 else "−" }}${{ "%.2f"|format(t.amount|abs) }}</div>
-        <div class="transaction-actions align-right">
-          <a href="{{ url_for('edit_transaction', tx_id=t.txNo) }}" class="btn btn-ghost btn-sm">Edit</a>
-          <form method="post" action="{{ url_for('delete_transaction', tx_id=t.txNo) }}" class="delete-form" style="display:inline;" onsubmit="return confirm('Delete this transaction?');">
-            <button class="btn btn-danger btn-sm">Delete</button>
-          </form>
-        </div>
-      </div>
-      {% else %}
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin:0 auto 1rem;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <p>No transactions found.</p>
-      </div>
-      {% endfor %}
-</div>
 
-{% if total_pages > 1 %}
-<div class="pagination">
-  {% if page > 1 %}
-    <a href="{{ url_for('transactions', page=page-1, category=category_filter) }}">Prev</a>
+  <section class="panel flush">
+    {{ ui.tx_list(transactions) }}
+  </section>
+
+  {% if total_pages > 1 %}
+  {% set args = {'category': f_category, 'iban': f_iban, 'month': f_month} %}
+  <nav class="pager" aria-label="Pages">
+    {% if page > 1 %}
+      <a class="btn" href="{{ url_for('transactions', page=page-1, **args) }}"><svg><use href="#i-chev-l"/></svg>Newer</a>
+    {% else %}<span></span>{% endif %}
+    <span class="muted small">Page {{ page }} of {{ '{:,}'.format(total_pages) }}</span>
+    {% if page < total_pages %}
+      <a class="btn" href="{{ url_for('transactions', page=page+1, **args) }}">Older<svg><use href="#i-chev-r"/></svg></a>
+    {% else %}<span></span>{% endif %}
+  </nav>
   {% endif %}
-  <span class="small" style="color:var(--text-muted);">Page {{ page }} of {{ total_pages }}</span>
-  {% if page < total_pages %}
-    <a href="{{ url_for('transactions', page=page+1, category=category_filter) }}">Next</a>
-  {% endif %}
-</div>
+{% elif f_category or f_iban or f_month %}
+  {{ ui.empty('No transactions match', 'Try another account, category or month.', url_for('transactions'), 'Clear filters') }}
+{% else %}
+  {{ ui.empty('No transactions yet', 'Add your first payment to start tracking.', url_for('new_transaction'), 'Add transaction') }}
 {% endif %}
 
-<!-- Quick Add FAB -->
-<div class="fab-wrap">
-  <a href="{{ url_for('new_transaction') }}" class="fab" title="Log expense">+</a>
-</div>
+<a class="fab" href="{{ url_for('new_transaction', iban=f_iban) }}" aria-label="Add transaction"><svg><use href="#i-plus"/></svg></a>
 {% endblock %}

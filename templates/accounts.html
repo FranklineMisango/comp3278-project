@@ -1,34 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Accounts · Financial Tracker{% endblock %}
+{% import "_macros.html" as ui with context %}
+{% block title %}Accounts | Financial Tracker{% endblock %}
 {% block content %}
-<section class="page-hero page-hero-compact">
-  <div>
-    <span class="eyebrow">Connected money</span>
-    <h1>Bank accounts</h1>
-    <p>All your balances, banks, and account details in one place.</p>
-  </div>
-  <a href="{{ url_for('new_account') }}" class="btn btn-accent">+ Add account</a>
-</section>
 
-<div class="account-grid">
-      {% for a in accounts %}
-      <article class="account-card">
-        <div class="account-card-top">
-          <span class="bank-mark">{{ a.bankName[:1]|upper }}</span>
-          <span class="badge {% if a.type=='checking' %}badge-ok{% elif a.type=='savings' %}badge-ok{% else %}badge-warn{% endif %}">{{ a.type|title }}</span>
-        </div>
-        <div class="account-card-bank">{{ a.bankName }}</div>
-        <div class="account-card-balance num">${{ "%.2f"|format(a.balance) }}</div>
-        <div class="account-card-meta"><span>•••• {{ a.IBAN[-4:] }}</span><span>{{ a.owner }}</span></div>
-        <div class="account-card-actions">
-          <a href="{{ url_for('edit_account', iban=a.IBAN) }}" class="btn btn-ghost btn-sm">Edit</a>
-          <form method="post" action="{{ url_for('delete_account', iban=a.IBAN) }}" class="delete-form" style="display:inline;" onsubmit="return confirm('Delete this account? This cannot be undone.');">
-            <button class="btn btn-danger btn-sm">Delete</button>
-          </form>
-        </div>
-      </article>
-      {% else %}
-      <div class="empty-state"><p>No accounts found.</p></div>
-      {% endfor %}
+<div class="page-head">
+  <div>
+    <h1>Accounts</h1>
+    <p class="muted">{{ accounts|length }} account{{ 's' if accounts|length != 1 }}, {{ total|usd }} in total</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('new_account') }}"><svg><use href="#i-plus"/></svg>Add account</a>
 </div>
+
+{% for type, list in groups if list %}
+  <section class="acct-group">
+    <h2 class="group-head">
+      {{ {'checking': 'Checking', 'savings': 'Savings', 'creditcard': 'Credit cards'}[type] }}
+      <span class="muted">{{ list|sum(attribute='balance')|usd }}</span>
+    </h2>
+    <div class="acct-grid">
+      {% for a in list %}
+        {{ ui.account_tile(a, url_for('edit_account', iban=a.IBAN)) }}
+      {% endfor %}
+    </div>
+  </section>
+{% else %}
+  {{ ui.empty('No accounts yet', 'Add a checking, savings or credit card account to get started.', url_for('new_account'), 'Add account') }}
+{% endfor %}
+
+<p class="muted small center">Select an account to edit or delete it.</p>
 {% endblock %}

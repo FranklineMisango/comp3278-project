@@ -1,38 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Budgets · Financial Tracker{% endblock %}
+{% import "_macros.html" as ui with context %}
+{% block title %}Budgets | Financial Tracker{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Budgets</h1>
-  <p>Monthly spending limits per category versus actual spending.</p>
+
+<div class="page-head">
+  <div>
+    <h1>Budgets</h1>
+    <p class="muted">Monthly limits per category, counted across all your accounts</p>
+  </div>
+  <nav class="month-nav" aria-label="Month">
+    <a class="icon-btn" href="{{ url_for('budgets', month=prev_month) }}" aria-label="Previous month"><svg><use href="#i-chev-l"/></svg></a>
+    <span>{{ month|month_label }}</span>
+    <a class="icon-btn" href="{{ url_for('budgets', month=next_month) }}" aria-label="Next month"><svg><use href="#i-chev-r"/></svg></a>
+  </nav>
 </div>
 
-<div class="card">
-  <div class="card-body">
-    {% if budgets %}
-      {% for b in budgets %}
-      <div style="margin-bottom: 1.25rem;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
-          <span style="font-size:0.95rem; font-weight:700; color:var(--brand-ink);">{{ b.category }}</span>
-          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">${{ "%.2f"|format(b.spent) }} / ${{ "%.2f"|format(b.limitAmount) }}</span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill {% if b.is_over %}over{% elif b.spent > b.limitAmount * 8 / 10 %}warn{% else %}ok{% endif %}" style="width: {{ (b.spent / b.limitAmount * 100)|float if b.limitAmount else 0 }}%;"></div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:0.35rem;">
-          <span class="badge {% if b.is_over %}badge-over{% else %}badge-ok{% endif %}">
-            {% if b.is_over %}&#10003; Over budget{% else %}On track{% endif %}
-          </span>
-          <span class="num" style="font-size:0.85rem; color:var(--text-muted);">
-            Remaining: ${{ "%.2f"|format(b.remaining) }}
-          </span>
-        </div>
-      </div>
-      {% endfor %}
-    {% else %}
-    <div class="empty-state" style="padding:1.5rem;">
-      <p>No budgets found.</p>
+{% if budgets %}
+  {% set pct = (total_spent / total_limit * 100) if total_limit else 0 %}
+  <section class="panel budget-summary">
+    <div>
+      <p class="muted small">Spent so far</p>
+      <p class="big-number">{{ total_spent|money }} <span class="of">of {{ total_limit|usd }}</span></p>
     </div>
-    {% endif %}
-  </div>
-</div>
+    <div class="summary-bar {{ 'over' if pct > 100 else 'near' if pct >= 80 }}">
+      <div class="bar"><span style="width: {{ [pct, 100]|min }}%"></span></div>
+      <p class="muted small">
+        {% set over = budgets|selectattr('state', 'equalto', 'over')|list|length %}
+        {{ pct|round|int }}% used{% if over %}, {{ over }} categor{{ 'ies' if over != 1 else 'y' }} over budget{% endif %}
+      </p>
+    </div>
+  </section>
+
+  <section class="panel">
+    {% for b in budgets %}{{ ui.budget_row(b) }}{% endfor %}
+  </section>
+{% else %}
+  {{ ui.empty('No budgets for ' ~ (month|month_label), 'The demo data has budgets for this month and the three months before it.', url_for('budgets'), 'Go to this month') }}
+{% endif %}
 {% endblock %}

@@ -1,60 +1,111 @@
 {% extends "base.html" %}
-{% block title %}{{ mode }} Transaction · Financial Tracker{% endblock %}
+{% import "_macros.html" as ui with context %}
+{% block title %}{{ 'Add' if mode == 'Create' else 'Edit' }} transaction | Financial Tracker{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>{{ mode }} Transaction</h1>
-  <p>Record money moving in or out of an account.</p>
-</div>
+{% set f = form or {} %}
 
-<div class="form-wrap">
-  <div class="form-card">
-    <form method="post" action="{{ action }}">
-      <div class="form-group">
-        <label>Date</label>
-        <input type="date" name="txDate" required value="{{ tx.txDate if tx else '' }}">
-      </div>
-      <div class="form-group">
-        <label>Amount</label>
-        <input type="number" step="0.01" name="amount" required min="0" value="{{ tx.amount if tx else '' }}">
-        <p class="form-hint">Enter the amount in your local currency.</p>
-      </div>
-      <div class="form-group">
-        <label>Account (IBAN)</label>
-        <select name="IBAN" required>
+<div class="sheet">
+  <a class="back" href="{{ url_for('transactions') }}"><svg><use href="#i-chev-l"/></svg>Transactions</a>
+  <h1>{{ 'Add transaction' if mode == 'Create' else 'Edit transaction' }}</h1>
+
+  <form method="post" class="form" id="txForm">
+    <div class="seg" role="radiogroup" aria-label="Type">
+      <input type="radio" id="dir-out" name="direction" value="out" {% if f.direction != 'in' %}checked{% endif %}>
+      <label for="dir-out">Money out</label>
+      <input type="radio" id="dir-in" name="direction" value="in" {% if f.direction == 'in' %}checked{% endif %}>
+      <label for="dir-in">Money in</label>
+    </div>
+
+    <div class="amount-field">
+      <label for="amount" class="sr-only">Amount</label>
+      <span class="amount-sign" id="amountSign" aria-hidden="true">{{ '+' if f.direction == 'in' else '−' }}$</span>
+      <input id="amount" type="number" name="amount" step="0.01" min="0.01" inputmode="decimal"
+             placeholder="0.00" required value="{{ f.amount or '' }}" {% if mode == 'Create' %}autofocus{% endif %}>
+    </div>
+
+    <div class="field">
+      <label for="IBAN">Account</label>
+      {% if mode == 'Edit' %}
+        <input id="IBAN" value="{{ tx.bankName }} {{ tx.IBAN|last4 }}" readonly>
+        <p class="hint">A transaction belongs to its account (it's a weak entity), so the account can't change. Delete it and add it again instead.</p>
+      {% else %}
+        <select id="IBAN" name="IBAN" required>
           {% for a in accounts %}
-            <option value="{{ a.IBAN }}" {% if tx and tx.IBAN==a.IBAN %}selected{% endif %}>
-              {{ a.IBAN }} &middot; balance ${{ "%.2f"|format(a.balance) }}
+            <option value="{{ a.IBAN }}" {% if a.IBAN == f.IBAN %}selected{% endif %}>
+              {{ a.bankName }} {{ type_label[a.type]|lower }} {{ a.IBAN|last4 }} ({{ a.balance|usd }})
             </option>
           {% endfor %}
         </select>
+      {% endif %}
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="txDate">Date</label>
+        <input id="txDate" type="date" name="txDate" required value="{{ f.txDate or '' }}">
       </div>
-      <div class="form-group">
-        <label>Category</label>
-        <select name="categoryID" required>
+      <div class="field">
+        <label for="categoryID">Category</label>
+        <select id="categoryID" name="categoryID">
+          <option value="">Uncategorized</option>
           {% for c in categories %}
-            <option value="{{ c.categoryID }}" {% if tx and tx.categoryID==c.categoryID %}selected{% endif %}>
-              {{ c.name }}
-            </option>
+            <option value="{{ c.categoryID }}" {% if c.categoryID|string == f.categoryID|string %}selected{% endif %}>{{ c.name }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="form-group">
-        <label>Subscription (optional)</label>
-        <select name="subID">
-          <option value="">None &mdash; general spending</option>
-          {% for s in subscriptions %}
-            <option value="{{ s.subID }}" {% if tx and tx.subID==s.subID %}selected{% endif %}>
-              Subscription #{{ s.subID }} &middot; ${{ "%.2f"|format(s.amount) }}
-            </option>
-          {% endfor %}
-        </select>
-        <p class="form-hint">Leave as "None" for a non-subscription transaction.</p>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" type="submit">{{ mode }}</button>
-        <a href="{{ url_for('transactions') }}" class="btn btn-ghost">Cancel</a>
-      </div>
-    </form>
-  </div>
+    </div>
+
+    <div class="field">
+      <label for="subID">Pays for a subscription</label>
+      <select id="subID" name="subID">
+        <option value="">No, regular payment</option>
+        {% for s in subscriptions %}
+          <option value="{{ s.subID }}" {% if s.subID|string == f.subID|string %}selected{% endif %}>{{ s.serviceName }} ({{ s.amount|usd }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" type="submit">{{ 'Add transaction' if mode == 'Create' else 'Save changes' }}</button>
+      <a class="btn btn-ghost btn-lg" href="{{ url_for('transactions') }}">Cancel</a>
+    </div>
+  </form>
+
+  {% if mode == 'Edit' %}
+  <form method="post" action="{{ url_for('delete_transaction', iban=tx.IBAN, tx_no=tx.txNo) }}" class="danger-zone"
+        onsubmit="return confirm('Delete this transaction? The account balance will be adjusted.');">
+    <div>
+      <strong>Delete transaction</strong>
+      <p class="muted small">The account balance is adjusted as if this {{ 'payment' if tx.amount < 0 else 'deposit' }} never happened.</p>
+    </div>
+    <button class="btn btn-danger" type="submit">Delete</button>
+  </form>
+  {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Show + or − in front of the amount, depending on money in / out
+  var sign = document.getElementById('amountSign');
+  document.querySelectorAll('input[name=direction]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      sign.textContent = (r.value === 'in' ? '+' : '−') + '$';
+      document.querySelector('.amount-field').classList.toggle('in', r.value === 'in');
+    });
+  });
+  if (document.getElementById('dir-in').checked) document.querySelector('.amount-field').classList.add('in');
+  // Let the big amount input grow with what is typed, so it stays centred
+  var amount = document.getElementById('amount');
+  function fit() { amount.style.width = Math.max(4.5, (amount.value || '0.00').length + 0.5) + 'ch'; }
+  amount.addEventListener('input', fit); fit();
+  // Picking a subscription fills in its category
+  var sub = document.getElementById('subID'), cat = document.getElementById('categoryID');
+  sub.addEventListener('change', function () {
+    if (!sub.value) return;
+    for (var i = 0; i < cat.options.length; i++) {
+      if (cat.options[i].text === 'Subscriptions') { cat.selectedIndex = i; break; }
+    }
+  });
+</script>
 {% endblock %}
